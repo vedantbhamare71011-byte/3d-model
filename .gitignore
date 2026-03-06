@@ -1,0 +1,6 @@
+venv/
+__pycache__/
+*.pyc
+tttLRM_repo/
+backend/workspace/
+.DS_Store

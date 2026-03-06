@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Scene Builder | tttLRM</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="background-elements">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <div class="container glass-panel">
+        <header>
+            <h1><i class="fa-solid fa-cube"></i> 3D Scene Builder</h1>
+            <p>Upload your 360-degree panorama images to reconstruct a 3D model powered by tttLRM.</p>
+        </header>
+
+        <section class="upload-section">
+            <div id="drop-zone" class="drop-zone">
+                <i class="fa-solid fa-cloud-arrow-up drop-icon"></i>
+                <h2>Drag & Drop Images Here</h2>
+                <p>or</p>
+                <input type="file" id="file-input" multiple accept="image/jpeg, image/png, image/jpg" hidden>
+                <button id="browse-btn" class="btn primary-btn">Browse Files</button>
+            </div>
+            
+            <div id="selected-files" class="selected-files">
+                <!-- Selected files will appear here -->
+            </div>
+            
+            <button id="upload-btn" class="btn action-btn disabled" disabled>
+                Process & Find Similarities <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </button>
+        </section>
+
+        <section id="loading-overlay" class="loading-overlay hidden">
+            <div class="spinner"></div>
+            <h3>Processing Images</h3>
+            <p>Running SIFT Feature Matching...</p>
+        </section>
+
+        <section id="results-section" class="results-section hidden">
+            <div class="results-header">
+                <h2><i class="fa-solid fa-diagram-project"></i> Feature Similarities</h2>
+                <p>This visualization shows how the algorithm matches key points between adjacent images to understand 3D depth and camera poses (COLMAP Setup).</p>
+            </div>
+            
+            <div id="matches-grid" class="matches-grid">
+                <!-- Matched images will be injected here -->
+            </div>
+
+            <div class="generate-action">
+                <button id="generate-3d-btn" class="btn mega-btn">
+                    <i class="fa-solid fa-vr-cardboard"></i> Generate 3D Model with tttLRM
+                </button>
+            </div>
+        </section>
+        
+        <div id="modal" class="modal hidden">
+            <div class="modal-content glass-panel">
+                <span class="close-btn">&times;</span>
+                <i class="fa-solid fa-triangle-exclamation warning-icon"></i>
+                <h2>Hardware Limitation</h2>
+                <p id="modal-text">The 3D generation is prepared! However, the final tttLRM model strictly requires NVIDIA GPUs to run. As this is running on MacOS, the final 3D inference is mocked for demonstration.</p>
+                <div class="success-check hidden" id="success-check">
+                    <i class="fa-solid fa-check-circle"></i> Pipeline Complete!
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
