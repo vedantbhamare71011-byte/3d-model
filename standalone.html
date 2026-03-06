@@ -851,7 +851,6 @@
                     modal.classList.add('hidden');
                 }
             });
-
             // 3D Scene Rendering Logic using Three.js
             function render3DScene(pointsData, camerasData) {
                 const container = document.getElementById('scene-container');
@@ -862,14 +861,22 @@
                     return;
                 }
 
+                // Wait a tiny bit more for browser to paint the new layout explicitly
+                let width = container.clientWidth || container.getBoundingClientRect().width || 800;
+                let height = container.clientHeight || container.getBoundingClientRect().height || 500;
+
+                // Fallback size safety
+                if (width === 0) width = 800;
+                if (height === 0) height = 500;
+
                 const scene = new THREE.Scene();
                 scene.background = new THREE.Color('#0d1117');
 
-                const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+                const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
                 camera.position.set(0, 5, 10);
 
                 const renderer = new THREE.WebGLRenderer({ antialias: true });
-                renderer.setSize(container.clientWidth, container.clientHeight);
+                renderer.setSize(width, height);
                 container.appendChild(renderer.domElement);
 
                 const controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -923,9 +930,11 @@
                 // Handle Resizing
                 window.addEventListener('resize', () => {
                     if (!container) return;
-                    camera.aspect = container.clientWidth / container.clientHeight;
+                    let w = container.clientWidth || 800;
+                    let h = container.clientHeight || 500;
+                    camera.aspect = w / h;
                     camera.updateProjectionMatrix();
-                    renderer.setSize(container.clientWidth, container.clientHeight);
+                    renderer.setSize(w, h);
                 });
             }
         });
