@@ -7,6 +7,8 @@
     <title>3D Scene Builder | tttLRM</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <style>
         :root {
             --bg-color: #0d1117;
@@ -294,6 +296,22 @@
             margin-bottom: 10px;
         }
 
+        .viewer-section {
+            animation: slideUp 0.5s ease;
+            width: 100%;
+        }
+
+        #scene-container {
+            width: 100%;
+            height: 500px;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border-color);
+        }
+
         .matches-grid {
             display: grid;
             grid-template-columns: 1fr;
@@ -472,6 +490,18 @@
             </div>
         </section>
 
+        <section id="viewer-section" class="viewer-section hidden">
+            <div class="results-header">
+                <h2><i class="fa-solid fa-cube"></i> Interactive 3D Preview</h2>
+                <p>Viewing Point Cloud Geometry and Camera Poses from generated COLMAP data.</p>
+            </div>
+
+            <div id="scene-container"></div>
+
+            <button class="btn primary-btn" style="margin-top: 20px; width: 100%;" onclick="location.reload()">Upload
+                New Images</button>
+        </section>
+
         <div id="modal" class="modal hidden">
             <div class="modal-content glass-panel">
                 <span class="close-btn">&times;</span>
@@ -489,9 +519,11 @@
                     <ol style="margin-left: 20px; margin-top: 10px; color: var(--text-muted);">
                         <li>Open terminal/command prompt in the project folder</li>
                         <li>Install python dependencies:
-                            <code>pip install fastapi uvicorn python-multipart opencv-python numpy</code></li>
+                            <code>pip install fastapi uvicorn python-multipart opencv-python numpy</code>
+                        </li>
                         <li>Run the backend:
-                            <code>python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000</code></li>
+                            <code>python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000</code>
+                        </li>
                         <li>Click "Generate 3D Model" again.</li>
                     </ol>
                 </div>
@@ -732,17 +764,55 @@
 
                     if (response.ok) {
                         const data = await response.json();
-                        document.getElementById('modal-title').innerText = "Success! GPU is Running";
-                        document.getElementById('modal-text').innerText = data.message || "The tttLRM inference has been triggered on your NVIDIA GPU! Please check the terminal window where you ran the Python backend for the progress and 3D output files.";
-                        successCheck.classList.remove('hidden');
+                        modal.classList.add('hidden');
+                        resultsSection.classList.add('hidden');
+                        document.getElementById('viewer-section').classList.remove('hidden');
+
+                        // Force container width resize for viewer
+                        document.querySelector('.container').style.maxWidth = '1000px';
+
+                        setTimeout(() => render3DScene(data.data.points, data.data.cameras), 100);
+
                     } else {
                         throw new Error('Backend returned error');
                     }
                 } catch (err) {
-                    // Browser couldn't connect to 127.0.0.1:8000
-                    document.getElementById('modal-title').innerText = "Backend Connection Failed";
-                    document.getElementById('modal-text').innerText = "Your web browser blocked the connection, or the Python backend is not running.";
-                    document.getElementById('backend-instructions').classList.remove('hidden');
+                    console.warn("Backend connection failed. Rendering offline mock 3D data.", err);
+
+                    // Offline Fallback - Generates random point cloud array in JS
+                    const mockPoints = [];
+                    for (let i = 0; i < 3000; i++) {
+                        const theta = Math.random() * 2 * Math.PI;
+                        const phi = Math.random() * Math.PI;
+                        const r = Math.random() * 5 + 1;
+                        mockPoints.push({
+                            x: r * Math.sin(phi) * Math.cos(theta),
+                            y: r * Math.sin(phi) * Math.sin(theta),
+                            z: r * Math.cos(phi) + 5,
+                            color: [Math.random() * 155 + 100, Math.random() * 155 + 100, Math.random() * 155 + 100]
+                        });
+                    }
+                    const mockCameras = [];
+                    for (let i = 0; i < currentFiles.length; i++) {
+                        mockCameras.push({
+                            position: [Math.sin(i) * 3, Math.cos(i) * 3, i * 1.5],
+                            quaternion: [0, 0, 0, 1]
+                        });
+                    }
+
+                    modal.classList.add('hidden');
+                    resultsSection.classList.add('hidden');
+                    document.getElementById('viewer-section').classList.remove('hidden');
+
+                    // Show a warning banner that it's offline mode inside the viewer
+                    const warning = document.createElement('div');
+                    warning.style.cssText = "background: rgba(220, 53, 69, 0.8); color: white; text-align: center; padding: 10px; border-radius: 8px; margin-bottom: 20px;";
+                    warning.innerHTML = "<i class='fa-solid fa-triangle-exclamation'></i> <b>Offline Mode:</b> Python server not connected. Showing browser-generated mock point cloud.";
+                    document.getElementById('viewer-section').insertBefore(warning, document.getElementById('scene-container'));
+
+                    document.querySelector('.container').style.maxWidth = '1000px';
+                    setTimeout(() => render3DScene(mockPoints, mockCameras), 100);
+
                 } finally {
                     generate3DBtn.innerHTML = '<i class="fa-solid fa-vr-cardboard"></i> Generate 3D Model with tttLRM';
                     generate3DBtn.disabled = false;
@@ -759,6 +829,78 @@
                     modal.classList.add('hidden');
                 }
             });
+
+            // 3D Scene Rendering Logic using Three.js
+            function render3DScene(pointsData, camerasData) {
+                const container = document.getElementById('scene-container');
+                container.innerHTML = ''; // Clear prior renders
+
+                const scene = new THREE.Scene();
+                scene.background = new THREE.Color('#0d1117');
+
+                const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+                camera.position.set(0, 5, 10);
+
+                const renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(container.clientWidth, container.clientHeight);
+                container.appendChild(renderer.domElement);
+
+                const controls = new THREE.OrbitControls(camera, renderer.domElement);
+                controls.enableDamping = true;
+
+                // Create Point Cloud
+                const geometry = new THREE.BufferGeometry();
+                const vertices = [];
+                const colors = [];
+
+                pointsData.forEach(p => {
+                    vertices.push(p.x, p.y, p.z);
+                    colors.push(p.color[0] / 255, p.color[1] / 255, p.color[2] / 255);
+                });
+
+                geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+                geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+                const material = new THREE.PointsMaterial({ size: 0.08, vertexColors: true });
+                const pointCloud = new THREE.Points(geometry, material);
+                scene.add(pointCloud);
+
+                // Add Camera Pyramids (Poses)
+                camerasData.forEach(c => {
+                    const helper = new THREE.CameraHelper(new THREE.PerspectiveCamera(40, 1.5, 0.1, 1.5));
+                    helper.position.set(c.position[0], c.position[1], c.position[2]);
+                    helper.quaternion.set(c.quaternion[0], c.quaternion[1], c.quaternion[2], c.quaternion[3]);
+                    // Custom yellow color for our cameras
+                    helper.setColors(0xffff00, 0xffff00, 0xffff00, 0xffff00, 0xffff00);
+                    scene.add(helper);
+                });
+
+                // Environment Helpers
+                scene.add(new THREE.GridHelper(15, 15, 0x444444, 0x222222));
+                const axesHelper = new THREE.AxesHelper(3);
+                scene.add(axesHelper);
+
+                // Animation loop
+                const animate = function () {
+                    requestAnimationFrame(animate);
+
+                    // Slowly rotate the point cloud for a dynamic look
+                    pointCloud.rotation.y += 0.002;
+
+                    controls.update();
+                    renderer.render(scene, camera);
+                };
+
+                animate();
+
+                // Handle Resizing
+                window.addEventListener('resize', () => {
+                    if (!container) return;
+                    camera.aspect = container.clientWidth / container.clientHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(container.clientWidth, container.clientHeight);
+                });
+            }
         });
     </script>
 </body>
