@@ -475,13 +475,28 @@
         <div id="modal" class="modal hidden">
             <div class="modal-content glass-panel">
                 <span class="close-btn">&times;</span>
-                <i class="fa-solid fa-triangle-exclamation warning-icon"></i>
-                <h2>Hardware Limitation</h2>
-                <p id="modal-text">The 3D generation is prepared! However, the final tttLRM model strictly requires
-                    NVIDIA GPUs to run. As this is running on MacOS, the final 3D inference is mocked for demonstration.
-                </p>
+                <i class="fa-solid fa-microchip warning-icon" style="color: #bc8cff;"></i>
+                <h2 id="modal-title">Checking GPU Connection...</h2>
+                <p id="modal-text" style="margin-bottom: 20px;">Connecting to the Python backend to run tttLRM
+                    processing on your local NVIDIA GPU...</p>
+                <div id="backend-instructions" class="hidden"
+                    style="text-align: left; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; font-size: 0.9rem;">
+                    <p style="color: #ff7b72; margin-bottom: 10px;"><b><i class="fa-solid fa-circle-xmark"></i> Cannot
+                            reach local Python Backend</b></p>
+                    HTML files running inside a web browser cannot directly execute PyTorch/CUDA tasks due to browser
+                    security sandboxes. To actually use your NVIDIA GPU, you must run the Python backend on your Windows
+                    machine:
+                    <ol style="margin-left: 20px; margin-top: 10px; color: var(--text-muted);">
+                        <li>Open terminal/command prompt in the project folder</li>
+                        <li>Install python dependencies:
+                            <code>pip install fastapi uvicorn python-multipart opencv-python numpy</code></li>
+                        <li>Run the backend:
+                            <code>python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000</code></li>
+                        <li>Click "Generate 3D Model" again.</li>
+                    </ol>
+                </div>
                 <div class="success-check hidden" id="success-check">
-                    <i class="fa-solid fa-check-circle"></i> Pipeline Complete!
+                    <i class="fa-solid fa-check-circle"></i> Pipeline Complete! Check backend logs for outputs.
                 </div>
             </div>
         </div>
@@ -696,16 +711,42 @@
 
             // Generate 3D Model Output Modal
             generate3DBtn.addEventListener('click', async () => {
-                generate3DBtn.innerHTML = '<div class="spinner" style="width:20px; height:20px; border-width:2px; display:inline-block; margin:0 10px -5px 0;"></div> Preparing Model...';
+                generate3DBtn.innerHTML = '<div class="spinner" style="width:20px; height:20px; border-width:2px; display:inline-block; margin:0 10px -5px 0;"></div> Triggering NVIDIA GPU...';
                 generate3DBtn.disabled = true;
 
-                // Simulate delay
-                setTimeout(() => {
-                    modal.classList.remove('hidden');
-                    successCheck.classList.remove('hidden');
+                // Show modal in loading state
+                document.getElementById('modal-title').innerText = "Connecting to GPU Backend...";
+                document.getElementById('modal-text').innerText = "Attempting to send generation request to your local Python server running at http://127.0.0.1:8000...";
+                document.getElementById('backend-instructions').classList.add('hidden');
+                successCheck.classList.add('hidden');
+                modal.classList.remove('hidden');
+
+                try {
+                    // In the standalone version, we try connecting to the python backend if it's running locally on Windows.
+                    const response = await fetch('http://127.0.0.1:8000/generate-3d', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        document.getElementById('modal-title').innerText = "Success! GPU is Running";
+                        document.getElementById('modal-text').innerText = data.message || "The tttLRM inference has been triggered on your NVIDIA GPU! Please check the terminal window where you ran the Python backend for the progress and 3D output files.";
+                        successCheck.classList.remove('hidden');
+                    } else {
+                        throw new Error('Backend returned error');
+                    }
+                } catch (err) {
+                    // Browser couldn't connect to 127.0.0.1:8000
+                    document.getElementById('modal-title').innerText = "Backend Connection Failed";
+                    document.getElementById('modal-text').innerText = "Your web browser blocked the connection, or the Python backend is not running.";
+                    document.getElementById('backend-instructions').classList.remove('hidden');
+                } finally {
                     generate3DBtn.innerHTML = '<i class="fa-solid fa-vr-cardboard"></i> Generate 3D Model with tttLRM';
                     generate3DBtn.disabled = false;
-                }, 1500);
+                }
             });
 
             // Close Modal
