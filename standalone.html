@@ -433,8 +433,10 @@
                 <i class="fa-solid fa-cloud-arrow-up drop-icon"></i>
                 <h2>Drag & Drop Images Here</h2>
                 <p>or</p>
-                <input type="file" id="file-input" multiple accept="image/jpeg, image/png, image/jpg" hidden>
-                <button id="browse-btn" class="btn primary-btn">Browse Files</button>
+                <input type="file" id="file-input" multiple accept="image/jpeg, image/png, image/jpg"
+                    style="display: none;">
+                <label for="file-input" id="browse-btn" class="btn primary-btn"
+                    style="display: inline-block; cursor: pointer; padding-top: 14px;">Browse Files</label>
             </div>
 
             <div id="selected-files" class="selected-files">
@@ -529,11 +531,8 @@
                 handleFiles(files);
             }
 
-            // Browse Button
-            browseBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                fileInput.click();
-            });
+            // Browse Button Native Label utilized instead to prevent iframe blocking.
+
 
             fileInput.addEventListener('change', function () {
                 handleFiles(this.files);
@@ -670,7 +669,7 @@
 
                         // Random vibrant color line
                         const hue = Math.floor(Math.random() * 360);
-                        ctx.strokeStyle = \`hsla(\${hue}, 100%, 60%, 0.7)\`;
+                        ctx.strokeStyle = `hsla(${hue}, 100%, 60%, 0.7)`;
                         ctx.lineWidth = 1.5;
 
                         // Draw line
@@ -680,11 +679,11 @@
                         ctx.stroke();
 
                         // Draw keypoints (circles)
-                        ctx.fillStyle = \`hsla(\${hue}, 100%, 70%, 0.9)\`;
+                        ctx.fillStyle = `hsla(${hue}, 100%, 70%, 0.9)`;
                         ctx.beginPath();
                         ctx.arc(x1, y1, 3, 0, 2 * Math.PI);
                         ctx.fill();
-                        
+
                         ctx.beginPath();
                         ctx.arc(x2, y2, 3, 0, 2 * Math.PI);
                         ctx.fill();
