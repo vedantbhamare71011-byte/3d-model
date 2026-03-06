@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-import pipeline
+from backend import pipeline
 
 app = FastAPI(title="3D Model Generation API")
 
