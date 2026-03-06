@@ -771,15 +771,38 @@
                         // Force container width resize for viewer
                         document.querySelector('.container').style.maxWidth = '1000px';
 
-                        setTimeout(() => render3DScene(data.data.points, data.data.cameras), 100);
+                        setTimeout(() => {
+                            if (data && data.data && data.data.points) {
+                                // Full new backend response
+                                render3DScene(data.data.points, data.data.cameras);
+                            } else {
+                                // Graceful fallback if old backend without points data is used
+                                const mockPoints = [];
+                                for (let i = 0; i < 3000; i++) {
+                                    const theta = Math.random() * 2 * Math.PI;
+                                    const phi = Math.random() * Math.PI;
+                                    const r = Math.random() * 5 + 1;
+                                    mockPoints.push({ x: r * Math.sin(phi) * Math.cos(theta), y: r * Math.sin(phi) * Math.sin(theta), z: r * Math.cos(phi) + 5, color: [Math.random() * 155 + 100, Math.random() * 155 + 100, Math.random() * 155 + 100] });
+                                }
+                                const mockCameras = [];
+                                for (let i = 0; i < (currentFiles.length ? currentFiles.length : 5); i++) {
+                                    mockCameras.push({ position: [Math.sin(i) * 3, Math.cos(i) * 3, i * 1.5], quaternion: [0, 0, 0, 1] });
+                                }
+                                const warning = document.createElement('div');
+                                warning.style.cssText = "background: #f39c12; color: white; text-align: center; padding: 10px; border-radius: 8px; margin-bottom: 20px;";
+                                warning.innerHTML = "<i class='fa-solid fa-circle-exclamation'></i> <b>Warning:</b> You are using the old backend! Showing browser-generated mock point cloud. Please redownload the latest ZIP from GitHub and update your backend.";
+                                document.getElementById('viewer-section').insertBefore(warning, document.getElementById('scene-container'));
+                                render3DScene(mockPoints, mockCameras);
+                            }
+                        }, 100);
 
                     } else {
                         throw new Error('Backend returned error');
                     }
                 } catch (err) {
-                    console.warn("Backend connection failed. Rendering offline mock 3D data.", err);
+                    console.warn("Backend connection failed.", err);
 
-                    // Offline Fallback - Generates random point cloud array in JS
+                    // Offline Fallback when python server is disconnected
                     const mockPoints = [];
                     for (let i = 0; i < 3000; i++) {
                         const theta = Math.random() * 2 * Math.PI;
@@ -793,7 +816,7 @@
                         });
                     }
                     const mockCameras = [];
-                    for (let i = 0; i < currentFiles.length; i++) {
+                    for (let i = 0; i < (currentFiles.length ? currentFiles.length : 5); i++) {
                         mockCameras.push({
                             position: [Math.sin(i) * 3, Math.cos(i) * 3, i * 1.5],
                             quaternion: [0, 0, 0, 1]
@@ -804,7 +827,6 @@
                     resultsSection.classList.add('hidden');
                     document.getElementById('viewer-section').classList.remove('hidden');
 
-                    // Show a warning banner that it's offline mode inside the viewer
                     const warning = document.createElement('div');
                     warning.style.cssText = "background: rgba(220, 53, 69, 0.8); color: white; text-align: center; padding: 10px; border-radius: 8px; margin-bottom: 20px;";
                     warning.innerHTML = "<i class='fa-solid fa-triangle-exclamation'></i> <b>Offline Mode:</b> Python server not connected. Showing browser-generated mock point cloud.";
@@ -834,6 +856,11 @@
             function render3DScene(pointsData, camerasData) {
                 const container = document.getElementById('scene-container');
                 container.innerHTML = ''; // Clear prior renders
+
+                if (typeof THREE === 'undefined') {
+                    container.innerHTML = '<div style="color:#ff7b72; text-align:center; padding-top: 180px; font-size: 1.2rem; font-family: sans-serif;"><i class="fa-solid fa-triangle-exclamation"></i> <b>Error:</b> The 3D Engine failed to load.<br><br><span style="font-size: 0.9rem; color: #8b949e;">HTMLPreview is heavily restricting external library scripts (Three.js).<br>To view and interact with the 3D space, please open the <code>standalone.html</code> file <b>directly from your computer</b> by double-clicking it on your desktop!</span></div>';
+                    return;
+                }
 
                 const scene = new THREE.Scene();
                 scene.background = new THREE.Color('#0d1117');
